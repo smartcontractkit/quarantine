@@ -1,0 +1,70 @@
+name: Lint and Test
+on:
+    push:
+        branches:
+          - main
+        tags:
+          - '*'
+    pull_request:
+        branches:
+          - main
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Install Dependencies
+        run: go mod download
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8.0.0
+        with:
+          version: latest
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Install Dependencies
+        run: go mod download
+      - name: Test
+        run: go tool gotestsum -- -coverprofile=coverage.out ./...
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.out
+
+  test-race:
+    name: Test (race)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Install Dependencies
+        run: go mod download
+      - name: Test
+        run: go tool gotestsum -- -race ./...
