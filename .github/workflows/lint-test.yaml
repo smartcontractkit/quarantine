@@ -45,12 +45,7 @@ jobs:
       - name: Install Dependencies
         run: go mod download
       - name: Test
-        run: go tool gotestsum -- -coverprofile=coverage.out ./...
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5.4.3
-        with:
-          token: ${{ secrets.CODECOV_TOKEN }}
-          files: coverage.out
+        run: go test -cover ./...
 
   test-race:
     name: Test (race)
@@ -67,4 +62,4 @@ jobs:
       - name: Install Dependencies
         run: go mod download
       - name: Test
-        run: go tool gotestsum -- -race ./...
+        run: go test -race ./...
