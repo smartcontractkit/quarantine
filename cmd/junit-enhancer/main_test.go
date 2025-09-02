@@ -11,7 +11,7 @@ import (
 func TestTestFinder(t *testing.T) {
 	// Create a temporary directory structure for testing
 	tempDir := t.TempDir()
-	
+
 	// Create a test file
 	testFileContent := `package main
 
@@ -79,29 +79,29 @@ func TestJUnitXMLProcessing(t *testing.T) {
   </testsuite>
 </testsuites>`
 
-	var testSuites TestSuites
+	var testSuites JUnitTestSuites
 	err := xml.Unmarshal([]byte(xmlContent), &testSuites)
 	if err != nil {
 		t.Fatalf("Failed to unmarshal XML: %v", err)
 	}
 
 	// Verify parsing
-	if len(testSuites.TestSuites) != 1 {
-		t.Errorf("Expected 1 test suite, got %d", len(testSuites.TestSuites))
+	if len(testSuites.Suites) != 1 {
+		t.Errorf("Expected 1 test suite, got %d", len(testSuites.Suites))
 	}
 
-	if len(testSuites.TestSuites[0].TestCases) != 1 {
-		t.Errorf("Expected 1 test case, got %d", len(testSuites.TestSuites[0].TestCases))
+	if len(testSuites.Suites[0].TestCases) != 1 {
+		t.Errorf("Expected 1 test case, got %d", len(testSuites.Suites[0].TestCases))
 	}
 
-	testCase := testSuites.TestSuites[0].TestCases[0]
+	testCase := testSuites.Suites[0].TestCases[0]
 	if testCase.Name != "TestExample" {
 		t.Errorf("Expected test name 'TestExample', got '%s'", testCase.Name)
 	}
 
 	// Add file attribute and test marshaling
-	testSuites.TestSuites[0].TestCases[0].File = "main_test.go"
-	
+	testSuites.Suites[0].TestCases[0].File = "main_test.go"
+
 	output, err := xml.MarshalIndent(testSuites, "", "  ")
 	if err != nil {
 		t.Fatalf("Failed to marshal XML: %v", err)

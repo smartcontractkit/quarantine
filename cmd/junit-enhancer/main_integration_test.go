@@ -140,7 +140,7 @@ func verifyEnhancedOutput(t *testing.T, junitEnhancedFile string, expectedPathPr
 		t.Fatalf("Failed to read enhanced XML: %v", err)
 	}
 
-	var enhancedSuites TestSuites
+	var enhancedSuites JUnitTestSuites
 	if err := xml.Unmarshal(enhancedData, &enhancedSuites); err != nil {
 		t.Fatalf("Failed to parse enhanced XML: %v", err)
 	}
@@ -149,7 +149,7 @@ func verifyEnhancedOutput(t *testing.T, junitEnhancedFile string, expectedPathPr
 	filesAdded := 0
 	totalTests := 0
 
-	for _, suite := range enhancedSuites.TestSuites {
+	for _, suite := range enhancedSuites.Suites {
 		for _, testCase := range suite.TestCases {
 			totalTests++
 			if testCase.File != "" {

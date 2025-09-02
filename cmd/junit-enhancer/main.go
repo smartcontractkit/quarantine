@@ -14,47 +14,58 @@ import (
 	"strings"
 )
 
-// JUnit XML structures
-type TestSuites struct {
-	XMLName    xml.Name    `xml:"testsuites"`
-	TestSuites []TestSuite `xml:"testsuite"`
+// JUnit XML structures based on gotestsum's internal/junitxml package
+// JUnitTestSuites is a collection of JUnit test suites.
+type JUnitTestSuites struct {
+	XMLName  xml.Name         `xml:"testsuites"`
+	Name     string           `xml:"name,attr,omitempty"`
+	Tests    int              `xml:"tests,attr"`
+	Failures int              `xml:"failures,attr"`
+	Errors   int              `xml:"errors,attr"`
+	Time     string           `xml:"time,attr"`
+	Suites   []JUnitTestSuite `xml:"testsuite"`
 }
 
-type TestSuite struct {
-	XMLName   xml.Name   `xml:"testsuite"`
-	Name      string     `xml:"name,attr"`
-	Tests     int        `xml:"tests,attr"`
-	Failures  int        `xml:"failures,attr"`
-	Errors    int        `xml:"errors,attr"`
-	Time      string     `xml:"time,attr"`
-	TestCases []TestCase `xml:"testcase"`
+// JUnitTestSuite is a single JUnit test suite which may contain many testcases.
+type JUnitTestSuite struct {
+	XMLName    xml.Name        `xml:"testsuite"`
+	Tests      int             `xml:"tests,attr"`
+	Failures   int             `xml:"failures,attr"`
+	Skipped    int             `xml:"skipped,attr,omitempty"`
+	Time       string          `xml:"time,attr"`
+	Name       string          `xml:"name,attr"`
+	Properties []JUnitProperty `xml:"properties>property,omitempty"`
+	TestCases  []JUnitTestCase `xml:"testcase"`
+	Timestamp  string          `xml:"timestamp,attr"`
 }
 
-type TestCase struct {
-	XMLName   xml.Name `xml:"testcase"`
-	ClassName string   `xml:"classname,attr"`
-	Name      string   `xml:"name,attr"`
-	Time      string   `xml:"time,attr"`
-	File      string   `xml:"file,attr,omitempty"`
-	Failure   *Failure `xml:"failure,omitempty"`
-	Error     *Error   `xml:"error,omitempty"`
-	Skipped   *Skipped `xml:"skipped,omitempty"`
+// JUnitTestCase is a single test case with its result.
+type JUnitTestCase struct {
+	XMLName     xml.Name          `xml:"testcase"`
+	Classname   string            `xml:"classname,attr"`
+	Name        string            `xml:"name,attr"`
+	Time        string            `xml:"time,attr"`
+	File        string            `xml:"file,attr,omitempty"`
+	SkipMessage *JUnitSkipMessage `xml:"skipped,omitempty"`
+	Failure     *JUnitFailure     `xml:"failure,omitempty"`
 }
 
-type Failure struct {
+// JUnitSkipMessage contains the reason why a testcase was skipped.
+type JUnitSkipMessage struct {
 	Message string `xml:"message,attr"`
-	Type    string `xml:"type,attr"`
-	Content string `xml:",chardata"`
 }
 
-type Error struct {
-	Message string `xml:"message,attr"`
-	Type    string `xml:"type,attr"`
-	Content string `xml:",chardata"`
+// JUnitProperty represents a key/value pair used to define properties.
+type JUnitProperty struct {
+	Name  string `xml:"name,attr"`
+	Value string `xml:"value,attr"`
 }
 
-type Skipped struct {
-	Message string `xml:"message,attr"`
+// JUnitFailure contains data related to a failed test.
+type JUnitFailure struct {
+	Message  string `xml:"message,attr"`
+	Type     string `xml:"type,attr"`
+	Contents string `xml:",chardata"`
 }
 
 // TestFinder helps locate test files and functions
@@ -158,7 +169,7 @@ func (tf *TestFinder) FindTestFile(className, testName string) string {
 	// Handle subtests and fuzz tests - try to match the parent test
 	if strings.Contains(testName, "/") {
 		parentTest := strings.Split(testName, "/")[0]
-		
+
 		// Try with package name
 		if packageName != "" {
 			key = fmt.Sprintf("%s.%s", packageName, parentTest)
@@ -166,7 +177,7 @@ func (tf *TestFinder) FindTestFile(className, testName string) string {
 				return file
 			}
 		}
-		
+
 		// Try without package name
 		key = fmt.Sprintf("%s", parentTest)
 		if file, exists := tf.testMap[key]; exists {
@@ -215,7 +226,7 @@ func main() {
 		log.Fatalf("Failed to read input file: %v", err)
 	}
 
-	var testSuites TestSuites
+	var testSuites JUnitTestSuites
 	if err := xml.Unmarshal(xmlData, &testSuites); err != nil {
 		log.Fatalf("Failed to parse XML: %v", err)
 	}
@@ -237,11 +248,11 @@ func main() {
 	// Process each test case and add file information
 	matched := 0
 	total := 0
-	for i := range testSuites.TestSuites {
-		for j := range testSuites.TestSuites[i].TestCases {
-			testCase := &testSuites.TestSuites[i].TestCases[j]
+	for i := range testSuites.Suites {
+		for j := range testSuites.Suites[i].TestCases {
+			testCase := &testSuites.Suites[i].TestCases[j]
 			total++
-			
+
 			// Skip if file is already set
 			if testCase.File != "" {
 				matched++
@@ -249,7 +260,7 @@ func main() {
 			}
 
 			// Find the test file
-			file := finder.FindTestFile(testCase.ClassName, testCase.Name)
+			file := finder.FindTestFile(testCase.Classname, testCase.Name)
 			if file != "" {
 				testCase.File = file
 				matched++
@@ -257,8 +268,8 @@ func main() {
 					fmt.Fprintf(os.Stderr, "Matched: %s -> %s\n", testCase.Name, file)
 				}
 			} else {
-				fmt.Fprintf(os.Stderr, "Warning: Could not find file for test %s in class %s\n", 
-					testCase.Name, testCase.ClassName)
+				fmt.Fprintf(os.Stderr, "Warning: Could not find file for test %s in class %s\n",
+					testCase.Name, testCase.Classname)
 			}
 		}
 	}
