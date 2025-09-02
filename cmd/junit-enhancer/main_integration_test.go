@@ -15,15 +15,10 @@ import (
 func runGoTestWithJUnit(t *testing.T, modulePath string) string {
 	t.Helper()
 
-	// Change to the module directory
-	originalDir, err := os.Getwd()
+	// Get absolute path to avoid directory change conflicts
+	absModulePath, err := filepath.Abs(modulePath)
 	if err != nil {
-		t.Fatalf("Failed to get current directory: %v", err)
-	}
-	defer os.Chdir(originalDir) // nolint: errcheck
-
-	if err := os.Chdir(modulePath); err != nil {
-		t.Fatalf("Failed to change to module directory %s: %v", modulePath, err)
+		t.Fatalf("Failed to get absolute path for %s: %v", modulePath, err)
 	}
 
 	// Create a temporary file for JUnit output
@@ -34,9 +29,10 @@ func runGoTestWithJUnit(t *testing.T, modulePath string) string {
 		t.Fatalf("gotestsum not found")
 	}
 
-	// Run gotestsum with JUnit output
+	// Run gotestsum with JUnit output in the target directory
 	// #nosec G204 - tempFile path is controlled
 	cmd := exec.Command("gotestsum", "--junitfile", tempFile, "--format", "testname", "./...")
+	cmd.Dir = absModulePath
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		// It's ok if tests fail, we still want to process the output
@@ -72,7 +68,7 @@ func TestIntegration_MainModule(t *testing.T) {
 
 	flags := []string{
 		"run",
-		"main.go",
+		".",
 		"-input", junitFile,
 		"-output", junitEnhancedFile,
 		"-repo-root", repoRoot,
@@ -118,7 +114,7 @@ func TestIntegration_ServiceModule(t *testing.T) {
 
 	flags := []string{
 		"run",
-		"main.go",
+		".",
 		"-input", junitFile,
 		"-output", junitEnhancedFile,
 		"-repo-root", repoRoot,
