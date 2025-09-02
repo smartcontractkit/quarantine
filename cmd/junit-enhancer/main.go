@@ -1,3 +1,4 @@
+// Package main implements a JUnit XML enhancer that adds file path information to test cases.
 package main
 
 import (
@@ -85,7 +86,7 @@ func NewTestFinder(repoRoot string) *TestFinder {
 
 // BuildTestMap scans the repository for Go test files and builds a map of test names to file paths
 func (tf *TestFinder) BuildTestMap() error {
-	return filepath.WalkDir(tf.repoRoot, func(path string, d fs.DirEntry, err error) error {
+	return filepath.WalkDir(tf.repoRoot, func(path string, _ fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
@@ -106,7 +107,7 @@ func (tf *TestFinder) BuildTestMap() error {
 
 // parseTestFile parses a Go test file and extracts test function names
 func (tf *TestFinder) parseTestFile(filePath string) error {
-	src, err := os.ReadFile(filePath)
+	src, err := os.ReadFile(filePath) // #nosec G304 - filePath is controlled by filepath.WalkDir
 	if err != nil {
 		return err
 	}
@@ -132,7 +133,10 @@ func (tf *TestFinder) parseTestFile(filePath string) error {
 	for _, decl := range file.Decls {
 		if fn, ok := decl.(*ast.FuncDecl); ok && fn.Name.IsExported() {
 			funcName := fn.Name.Name
-			if strings.HasPrefix(funcName, "Test") || strings.HasPrefix(funcName, "Benchmark") || strings.HasPrefix(funcName, "Example") || strings.HasPrefix(funcName, "Fuzz") {
+			if strings.HasPrefix(funcName, "Test") ||
+				strings.HasPrefix(funcName, "Benchmark") ||
+				strings.HasPrefix(funcName, "Example") ||
+				strings.HasPrefix(funcName, "Fuzz") {
 				// Create a key that matches the classname pattern
 				key := fmt.Sprintf("%s.%s", packageName, funcName)
 				tf.testMap[key] = relPath
@@ -154,14 +158,14 @@ func (tf *TestFinder) FindTestFile(className, testName string) string {
 
 	// Try exact match with package name first
 	if packageName != "" {
-		key := fmt.Sprintf("%s.%s", packageName, testName)
+		key := packageName + "." + testName
 		if file, exists := tf.testMap[key]; exists {
 			return file
 		}
 	}
 
 	// Try exact match without package name
-	key := fmt.Sprintf("%s", testName)
+	key := testName
 	if file, exists := tf.testMap[key]; exists {
 		return file
 	}
@@ -172,14 +176,14 @@ func (tf *TestFinder) FindTestFile(className, testName string) string {
 
 		// Try with package name
 		if packageName != "" {
-			key = fmt.Sprintf("%s.%s", packageName, parentTest)
+			key = packageName + "." + parentTest
 			if file, exists := tf.testMap[key]; exists {
 				return file
 			}
 		}
 
 		// Try without package name
-		key = fmt.Sprintf("%s", parentTest)
+		key = parentTest
 		if file, exists := tf.testMap[key]; exists {
 			return file
 		}
@@ -284,7 +288,7 @@ func main() {
 	xmlOutput := []byte(xml.Header + string(output))
 
 	// Write to output file
-	if err := os.WriteFile(*outputFile, xmlOutput, 0644); err != nil {
+	if err := os.WriteFile(*outputFile, xmlOutput, 0600); err != nil {
 		log.Fatalf("Failed to write output file: %v", err)
 	}
 

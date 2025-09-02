@@ -20,7 +20,7 @@ func runGoTestWithJUnit(t *testing.T, modulePath string) string {
 	if err != nil {
 		t.Fatalf("Failed to get current directory: %v", err)
 	}
-	defer os.Chdir(originalDir)
+	defer os.Chdir(originalDir) // nolint: errcheck
 
 	if err := os.Chdir(modulePath); err != nil {
 		t.Fatalf("Failed to change to module directory %s: %v", modulePath, err)
@@ -35,6 +35,7 @@ func runGoTestWithJUnit(t *testing.T, modulePath string) string {
 	}
 
 	// Run gotestsum with JUnit output
+	// #nosec G204 - tempFile path is controlled
 	cmd := exec.Command("gotestsum", "--junitfile", tempFile, "--format", "testname", "./...")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -55,6 +56,7 @@ func runGoTestWithJUnit(t *testing.T, modulePath string) string {
 }
 
 func TestIntegration_MainModule(t *testing.T) {
+	t.Parallel()
 	// Test the main test-fixture module
 	testFixturePath := "./test-fixture"
 
@@ -78,7 +80,7 @@ func TestIntegration_MainModule(t *testing.T) {
 	}
 
 	// Run the junit-enhancer tool
-	cmd := exec.Command("go", flags...)
+	cmd := exec.Command("go", flags...) // #nosec G204 - flags are controlled by test code
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -90,11 +92,17 @@ func TestIntegration_MainModule(t *testing.T) {
 	verifyEnhancedOutput(t, junitEnhancedFile, "cmd/junit-enhancer/test-fixture")
 
 	// Clean up
-	os.Remove(junitFile)
-	os.Remove(junitFile + ".enhanced")
+	if err := os.Remove(junitFile); err != nil {
+		t.Logf("Failed to remove %s: %v", junitFile, err)
+	}
+	if err := os.Remove(junitEnhancedFile); err != nil {
+		t.Logf("Failed to remove %s: %v", junitEnhancedFile, err)
+	}
 }
 
 func TestIntegration_ServiceModule(t *testing.T) {
+	t.Parallel()
+
 	// Test the service module (separate Go module)
 	servicePath := "./test-fixture/service"
 
@@ -118,7 +126,7 @@ func TestIntegration_ServiceModule(t *testing.T) {
 	}
 
 	// Run the junit-enhancer tool
-	cmd := exec.Command("go", flags...)
+	cmd := exec.Command("go", flags...) // #nosec G204 - flags are controlled by test code
 
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -129,13 +137,19 @@ func TestIntegration_ServiceModule(t *testing.T) {
 
 	verifyEnhancedOutput(t, junitEnhancedFile, "cmd/junit-enhancer/test-fixture/service")
 
-	os.Remove(junitFile)
-	os.Remove(junitEnhancedFile)
+	if err := os.Remove(junitFile); err != nil {
+		t.Logf("Failed to remove %s: %v", junitFile, err)
+	}
+	if err := os.Remove(junitEnhancedFile); err != nil {
+		t.Logf("Failed to remove %s: %v", junitEnhancedFile, err)
+	}
 }
 
 func verifyEnhancedOutput(t *testing.T, junitEnhancedFile string, expectedPathPrefix string) {
+	t.Helper()
+
 	// Read and verify the enhanced XML
-	enhancedData, err := os.ReadFile(junitEnhancedFile)
+	enhancedData, err := os.ReadFile(junitEnhancedFile) // #nosec G304 - file path is controlled by test
 	if err != nil {
 		t.Fatalf("Failed to read enhanced XML: %v", err)
 	}

@@ -9,6 +9,7 @@ import (
 )
 
 func TestTestFinder(t *testing.T) {
+	t.Parallel()
 	// Create a temporary directory structure for testing
 	tempDir := t.TempDir()
 
@@ -32,7 +33,7 @@ func FuzzMessageHasher(f *testing.F) {
 }
 `
 	testFilePath := filepath.Join(tempDir, "example_test.go")
-	err := os.WriteFile(testFilePath, []byte(testFileContent), 0644)
+	err := os.WriteFile(testFilePath, []byte(testFileContent), 0600)
 	if err != nil {
 		t.Fatalf("Failed to create test file: %v", err)
 	}
@@ -71,6 +72,8 @@ func FuzzMessageHasher(f *testing.F) {
 }
 
 func TestJUnitXMLProcessing(t *testing.T) {
+	t.Parallel()
+
 	// Test XML parsing and marshaling
 	xmlContent := `<?xml version="1.0" encoding="UTF-8"?>
 <testsuites>
