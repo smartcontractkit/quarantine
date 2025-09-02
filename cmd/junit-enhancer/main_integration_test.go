@@ -173,6 +173,9 @@ func verifyEnhancedOutput(t *testing.T, junitEnhancedFile string, expectedPathPr
 				if !strings.HasSuffix(testCase.File, "_test.go") {
 					t.Errorf("File path should point to a test file, got: %s", testCase.File)
 				}
+				if testCase.Classname == "" && testCase.Name == "TestMain" {
+					t.Errorf("TestMain should have been filtered out. Found for suite: %s", suite.Name)
+				}
 			}
 		}
 	}
