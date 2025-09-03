@@ -105,6 +105,19 @@ func main() {
 		}
 	}
 
+	// Filter out all TestMain testcases
+	for i := range testSuites.Suites {
+		var filtered []JUnitTestCase
+		for j := range testSuites.Suites[i].TestCases {
+			testCase := &testSuites.Suites[i].TestCases[j]
+			if testCase.Classname == "" && testCase.Name == "TestMain" {
+				continue
+			}
+			filtered = append(filtered, *testCase)
+		}
+		testSuites.Suites[i].TestCases = filtered
+	}
+
 	// Process each test case and add file information
 	matched := 0
 	total := 0
