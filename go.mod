@@ -1,6 +1,6 @@
 module github.com/smartcontractkit/quarantine
 
-go 1.25.0
+go 1.21.1
 
 require github.com/stretchr/testify v1.10.0
 
