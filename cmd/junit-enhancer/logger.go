@@ -40,7 +40,7 @@ func isRunningInGitHubActions() bool {
 	return false
 }
 
-// Debug logs a debug message
+// Logs a debug message
 func (l *Logger) Debug(format string, args ...interface{}) {
 	if !l.verbose {
 		return
@@ -54,13 +54,13 @@ func (l *Logger) Debug(format string, args ...interface{}) {
 	}
 }
 
-// Info logs an info message
+// Logs an info message
 func (l *Logger) Info(format string, args ...interface{}) {
 	message := fmt.Sprintf(format, args...)
 	fmt.Printf("%s\n", message)
 }
 
-// Warning logs a warning message
+// Logs a warning message
 func (l *Logger) Warning(format string, args ...interface{}) {
 	message := fmt.Sprintf(format, args...)
 	if l.isGitHubActions {
@@ -70,7 +70,7 @@ func (l *Logger) Warning(format string, args ...interface{}) {
 	}
 }
 
-// Error logs an error message
+// Logs an error message
 func (l *Logger) Error(format string, args ...interface{}) {
 	message := fmt.Sprintf(format, args...)
 	if l.isGitHubActions {
@@ -80,7 +80,7 @@ func (l *Logger) Error(format string, args ...interface{}) {
 	}
 }
 
-// Fatal logs an error message and exits
+// Logs a fatal error message and exits
 func (l *Logger) Fatal(format string, args ...interface{}) {
 	l.Error(format, args...)
 	os.Exit(1)

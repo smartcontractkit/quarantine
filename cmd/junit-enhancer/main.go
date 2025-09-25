@@ -76,11 +76,10 @@ func processTestCaseFilePath(tCase *JUnitTestCase, finder *TestFinder, logger *L
 		tCase.File = file
 		logger.Debug("Matched: %s -> %s", tCase.Name, file)
 		return true
-	} else {
-		logger.Warning("Could not find file for test %s in class %s",
-			tCase.Name, tCase.Classname)
-		return false
 	}
+
+	logger.Warning("Could not find file for test %s in class %s", tCase.Name, tCase.Classname)
+	return false
 }
 
 func main() {
