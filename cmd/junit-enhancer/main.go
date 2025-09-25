@@ -4,8 +4,6 @@ package main
 import (
 	"encoding/xml"
 	"flag"
-	"fmt"
-	"log"
 	"os"
 )
 
@@ -63,6 +61,28 @@ type JUnitFailure struct {
 	Contents string `xml:",chardata"`
 }
 
+// processTestCaseFilePath attempts to add file path information to a test case
+// Returns true if the test case was matched with a file path (or already had one)
+func processTestCaseFilePath(tCase *JUnitTestCase, finder *TestFinder, logger *Logger) bool {
+	// Skip if file is already set
+	if tCase.File != "" {
+		logger.Warning("File already populated for %s. Skipping.", tCase.Name)
+		return true
+	}
+
+	// Find the test file
+	file := finder.FindTestFile(tCase.Classname, tCase.Name)
+	if file != "" {
+		tCase.File = file
+		logger.Debug("Matched: %s -> %s", tCase.Name, file)
+		return true
+	} else {
+		logger.Warning("Could not find file for test %s in class %s",
+			tCase.Name, tCase.Classname)
+		return false
+	}
+}
+
 func main() {
 	var (
 		inputFile  = flag.String("input", "", "Path to JUnit XML file")
@@ -72,8 +92,11 @@ func main() {
 	)
 	flag.Parse()
 
+	// Initialize logger
+	logger := NewLogger(*verbose)
+
 	if *inputFile == "" {
-		log.Fatal("Input file is required")
+		logger.Fatal("Input file is required")
 	}
 
 	if *outputFile == "" {
@@ -83,74 +106,67 @@ func main() {
 	// Read and parse the JUnit XML file
 	xmlData, err := os.ReadFile(*inputFile)
 	if err != nil {
-		log.Fatalf("Failed to read input file: %v", err)
+		logger.Fatal("Failed to read input file: %v", err)
 	}
 
 	var testSuites JUnitTestSuites
 	if err := xml.Unmarshal(xmlData, &testSuites); err != nil {
-		log.Fatalf("Failed to parse XML: %v", err)
+		logger.Fatal("Failed to parse XML: %v", err)
 	}
 
 	// Initialize test finder and build test map
 	finder := NewTestFinder(*repoRoot)
 	if err := finder.BuildTestMap(); err != nil {
-		log.Fatalf("Failed to build test map: %v", err)
+		logger.Fatal("Failed to build test map: %v", err)
 	}
 
-	if *verbose {
-		fmt.Fprintf(os.Stderr, "Built test map with %d entries\n", len(finder.testMap))
-		fmt.Fprintf(os.Stderr, "Sample entries:\n")
-		for key, file := range finder.testMap {
-			fmt.Fprintf(os.Stderr, "  %s -> %s\n", key, file)
-		}
+	logger.Debug("Built test map with %d entries", len(finder.testMap))
+	logger.Debug("Sample entries:")
+	for key, file := range finder.testMap {
+		logger.Debug("  %s -> %s", key, file)
 	}
 
-	// Filter out all TestMain testcases
-	for i := range testSuites.Suites {
-		var filtered []JUnitTestCase
-		for j := range testSuites.Suites[i].TestCases {
-			testCase := &testSuites.Suites[i].TestCases[j]
-			if testCase.Classname == "" && testCase.Name == "TestMain" {
-				continue
-			}
-			filtered = append(filtered, *testCase)
-		}
-		testSuites.Suites[i].TestCases = filtered
-	}
-
-	// Process each test case and add file information
+	// Process test suites: filter and add file information in one pass
 	matched := 0
 	total := 0
-	for i := range testSuites.Suites {
-		for j := range testSuites.Suites[i].TestCases {
-			testCase := &testSuites.Suites[i].TestCases[j]
-			total++
+	var filteredSuites []JUnitTestSuite
 
-			// Skip if file is already set
-			if testCase.File != "" {
-				matched++
+	for i, suite := range testSuites.Suites {
+		if (suite.Tests == 0) && (suite.Name == "") {
+			logger.Warning("Skipping unnamed and empty test suite at index %d", i)
+			continue
+		}
+
+		var filteredTestCases []JUnitTestCase
+		for _, tCase := range suite.TestCases {
+			if tCase.Classname == "" && tCase.Name == "TestMain" {
+				// Skip TestMain test cases which are typically due to
+				// package-level setup/teardown issues, like compilation errors.
+				logger.Warning("Skipping TestMain test case in suite %s", suite.Name)
+				if tCase.Failure != nil {
+					logger.Error("%s TestMain failure: %s", suite.Name, tCase.Failure.Contents)
+				}
 				continue
 			}
 
-			// Find the test file
-			file := finder.FindTestFile(testCase.Classname, testCase.Name)
-			if file != "" {
-				testCase.File = file
+			// Process file information for valid test cases
+			total++
+			if processTestCaseFilePath(&tCase, finder, logger) {
 				matched++
-				if *verbose {
-					fmt.Fprintf(os.Stderr, "Matched: %s -> %s\n", testCase.Name, file)
-				}
-			} else {
-				fmt.Fprintf(os.Stderr, "Warning: Could not find file for test %s in class %s\n",
-					testCase.Name, testCase.Classname)
 			}
+
+			filteredTestCases = append(filteredTestCases, tCase)
 		}
+		suite.TestCases = filteredTestCases
+		filteredSuites = append(filteredSuites, suite)
 	}
 
+	testSuites.Suites = filteredSuites
+
 	// Marshal back to XML
-	output, err := xml.MarshalIndent(testSuites, "", "  ")
+	output, err := xml.MarshalIndent(testSuites, "", "\t")
 	if err != nil {
-		log.Fatalf("Failed to marshal XML: %v", err)
+		logger.Fatal("Failed to marshal XML: %v", err)
 	}
 
 	// Add XML header
@@ -158,8 +174,8 @@ func main() {
 
 	// Write to output file
 	if err := os.WriteFile(*outputFile, xmlOutput, 0600); err != nil {
-		log.Fatalf("Failed to write output file: %v", err)
+		logger.Fatal("Failed to write output file: %v", err)
 	}
 
-	fmt.Printf("Successfully enhanced JUnit XML file: %s (%d/%d test cases matched)\n", *outputFile, matched, total)
+	logger.Info("Successfully enhanced JUnit XML file: %s (%d/%d test cases matched)", *outputFile, matched, total)
 }
