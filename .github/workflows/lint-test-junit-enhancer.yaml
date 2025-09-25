@@ -51,7 +51,14 @@ jobs:
 
       - name: Install Dependencies
         working-directory: cmd/junit-enhancer
-        run: go mod download
+        run: |
+          echo "::group::Installing dependencies"
+          go mod download
+          echo "::end-group::"
+
+          echo "::group::Installing gotestsum"
+          go install gotest.tools/gotestsum@latest
+          echo "::end-group::"
 
       - name: Test
         working-directory: cmd/junit-enhancer
@@ -73,7 +80,14 @@ jobs:
 
       - name: Install Dependencies
         working-directory: cmd/junit-enhancer
-        run: go mod download
+        run: |
+          echo "::group::Installing dependencies"
+          go mod download
+          echo "::end-group::"
+
+          echo "::group::Installing gotestsum"
+          go install gotest.tools/gotestsum@latest
+          echo "::end-group::"
 
       - name: Test
         working-directory: cmd/junit-enhancer
