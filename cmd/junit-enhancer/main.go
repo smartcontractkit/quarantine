@@ -140,8 +140,12 @@ func main() {
 		inputFile  = flag.String("input", "", "Path to JUnit XML file")
 		outputFile = flag.String("output", "", "Path to output JUnit XML file (defaults to input file)")
 		repoRoot   = flag.String("repo-root", ".", "Path to repository root")
-		modulePath = flag.String("module-path", "", "Path relative to repository root to limit processing to a specific module (optional)")
-		verbose    = flag.Bool("verbose", false, "Enable verbose output for debugging")
+		modulePath = flag.String(
+			"module-path",
+			"",
+			"Path relative to repository root to limit processing to a specific module (optional)",
+		)
+		verbose = flag.Bool("verbose", false, "Enable verbose output for debugging")
 	)
 	flag.Parse()
 
