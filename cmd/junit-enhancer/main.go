@@ -5,6 +5,8 @@ import (
 	"encoding/xml"
 	"flag"
 	"os"
+	"regexp"
+	"strings"
 )
 
 // JUnit XML structures based on gotestsum's internal/junitxml package
@@ -63,7 +65,7 @@ type JUnitFailure struct {
 
 // processTestCaseFilePath attempts to add file path information to a test case
 // Returns true if the test case was matched with a file path (or already had one)
-func processTestCaseFilePath(tCase *JUnitTestCase, finder *TestFinder, logger *Logger) bool {
+func processTestCaseFilePath(tCase *JUnitTestCase, packages *PackagesInfo, logger *Logger) bool {
 	// Skip if file is already set
 	if tCase.File != "" {
 		logger.Warning("File already populated for %s. Skipping.", tCase.Name)
@@ -71,10 +73,61 @@ func processTestCaseFilePath(tCase *JUnitTestCase, finder *TestFinder, logger *L
 	}
 
 	// Find the test file
-	file := finder.FindTestFile(tCase.Classname, tCase.Name)
+	targetPackageInfo, targetTestPackageInfo, err := packages.Get(tCase.Classname)
+	if err != nil {
+		logger.Error("Error finding package for class %s: %v", tCase.Classname, err)
+		return false
+	}
+
+	// Build candidate names: full name and base (for subtests like TestFoo/bar/baz)
+	name := tCase.Name
+	base := name
+	if i := strings.Index(name, "/"); i >= 0 {
+		base = name[:i]
+	}
+	candidates := []string{name}
+	if base != name {
+		candidates = append(candidates, base)
+	}
+
+	var (
+		foundTest bool
+		file      string
+	)
+
+	for _, fileInfo := range append(targetPackageInfo.TestGoFiles, targetTestPackageInfo.TestGoFiles...) {
+		// Read the file to search for the test function
+		data, err := os.ReadFile(fileInfo.FullPath)
+		if err != nil {
+			logger.Debug("Unable to read %s: %v", fileInfo, err)
+			continue
+		}
+		src := string(data)
+
+		// Match: func [optional (recv) ] TestName(
+		for _, cand := range candidates {
+			re := regexp.MustCompile(`(?m)^\s*func\s+(?:\([^)]+\)\s*)?` + regexp.QuoteMeta(cand) + `\s*\(`)
+			if re.FindStringIndex(src) != nil {
+				file = fileInfo.RelPath
+				foundTest = true
+				break
+			}
+		}
+
+		if foundTest {
+			break
+		}
+	}
+
+	if !foundTest {
+		logger.Error("Unable to locate test for '%s.%s'", tCase.Classname, tCase.Name)
+		logger.Debug("Searched in package: %+v", targetPackageInfo.TestGoFiles)
+		return false
+	}
+
 	if file != "" {
 		tCase.File = file
-		logger.Debug("Matched: %s -> %s", tCase.Name, file)
+		logger.Debug("Matched: %s.%s -> %s", tCase.Classname, tCase.Name, file)
 		return true
 	}
 
@@ -87,7 +140,12 @@ func main() {
 		inputFile  = flag.String("input", "", "Path to JUnit XML file")
 		outputFile = flag.String("output", "", "Path to output JUnit XML file (defaults to input file)")
 		repoRoot   = flag.String("repo-root", ".", "Path to repository root")
-		verbose    = flag.Bool("verbose", false, "Enable verbose output for debugging")
+		modulePath = flag.String(
+			"module-path",
+			"",
+			"Path relative to repository root to limit processing to a specific module (optional)",
+		)
+		verbose = flag.Bool("verbose", false, "Enable verbose output for debugging")
 	)
 	flag.Parse()
 
@@ -114,15 +172,9 @@ func main() {
 	}
 
 	// Initialize test finder and build test map
-	finder := NewTestFinder(*repoRoot)
-	if err := finder.BuildTestMap(); err != nil {
+	packagesInfo, err := Packages(*repoRoot, *modulePath)
+	if err != nil {
 		logger.Fatal("Failed to build test map: %v", err)
-	}
-
-	logger.Debug("Built test map with %d entries", len(finder.testMap))
-	logger.Debug("Sample entries:")
-	for key, file := range finder.testMap {
-		logger.Debug("  %s -> %s", key, file)
 	}
 
 	// Process test suites: filter and add file information in one pass
@@ -150,7 +202,7 @@ func main() {
 
 			// Process file information for valid test cases
 			total++
-			if processTestCaseFilePath(&tCase, finder, logger) {
+			if processTestCaseFilePath(&tCase, packagesInfo, logger) {
 				matched++
 			}
 
