@@ -37,7 +37,7 @@ func runGoTestWithJUnit(t *testing.T, modulePath string) string {
 	if err != nil {
 		// It's ok if tests fail, we still want to process the output
 		if exitError, ok := err.(*exec.ExitError); ok {
-			t.Logf("gotestsum had non-zero exit code: %v\nOutput: %s", exitError, output)
+			t.Logf("gotestsum had non-zero exit code (continuing): %v\nOutput: %s", exitError, output)
 		} else {
 			t.Fatalf("Failed to run gotestsum: %v\nOutput: %s", err, output)
 		}
@@ -77,10 +77,15 @@ func TestIntegration_MainModule(t *testing.T) {
 
 	// Run the junit-enhancer tool
 	cmd := exec.Command("go", flags...) // #nosec G204 - flags are controlled by test code
-
 	output, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("junit-enhancer failed: %v\nOutput: %s", err, output)
+
+	if exitError, ok := err.(*exec.ExitError); ok {
+    exitCode := exitError.ExitCode()
+    if exitCode != 1 {
+        t.Fatalf("junit-enhancer failed with unexpected exit code %d\nOutput: %s", exitCode, output)
+    }
+	} else {
+		t.Fatalf(" Expected an exit code of 1 from junit-enhancer but got none.\nOutput: %s", output)
 	}
 
 	t.Logf("junit-enhancer output: %s", output)

@@ -126,6 +126,7 @@ func main() {
 	}
 
 	// Process test suites: filter and add file information in one pass
+	shouldFail := false
 	matched := 0
 	total := 0
 	var filteredSuites []JUnitTestSuite
@@ -144,6 +145,7 @@ func main() {
 				logger.Warning("Skipping TestMain test case in suite %s", suite.Name)
 				if tCase.Failure != nil {
 					logger.Error("%s TestMain failure: %s", suite.Name, tCase.Failure.Contents)
+					shouldFail = true
 				}
 				continue
 			}
@@ -174,6 +176,10 @@ func main() {
 	// Write to output file
 	if err := os.WriteFile(*outputFile, xmlOutput, 0600); err != nil {
 		logger.Fatal("Failed to write output file: %v", err)
+	}
+
+	if shouldFail {
+		logger.Fatal("JUnit XML enhancement completed with errors. See above logging for details.")
 	}
 
 	logger.Info("Successfully enhanced JUnit XML file: %s (%d/%d test cases matched)", *outputFile, matched, total)
