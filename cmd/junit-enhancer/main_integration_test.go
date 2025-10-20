@@ -80,10 +80,10 @@ func TestIntegration_MainModule(t *testing.T) {
 	output, err := cmd.CombinedOutput()
 
 	if exitError, ok := err.(*exec.ExitError); ok {
-    exitCode := exitError.ExitCode()
-    if exitCode != 1 {
-        t.Fatalf("junit-enhancer failed with unexpected exit code %d\nOutput: %s", exitCode, output)
-    }
+		exitCode := exitError.ExitCode()
+		if exitCode != 1 {
+			t.Fatalf("junit-enhancer failed with unexpected exit code %d\nOutput: %s", exitCode, output)
+		}
 	} else {
 		t.Fatalf(" Expected an exit code of 1 from junit-enhancer but got none.\nOutput: %s", output)
 	}
