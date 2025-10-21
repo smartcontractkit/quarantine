@@ -166,7 +166,7 @@ func main() {
 						logger.Error(
 							"(failing) Timeout in TestMain with no other failures in suite %s - %s",
 							suite.Name,
-							tCase.Failure.Contents,
+							logger.TruncateString(tCase.Failure.Contents, 100),
 						)
 						shouldFail = true
 					}
@@ -178,7 +178,7 @@ func main() {
 					logger.Error(
 						"(failing) Build failure detected for suite %s - %s",
 						suite.Name,
-						tCase.Failure.Contents,
+						logger.TruncateString(tCase.Failure.Contents, 100),
 					)
 					shouldFail = true
 					continue
@@ -189,7 +189,7 @@ func main() {
 					logger.Error(
 						"(failing) Unknown failure in TestMain with no other failures in suite %s - %s",
 						suite.Name,
-						tCase.Failure.Contents,
+						logger.TruncateString(tCase.Failure.Contents, 100),
 					)
 					shouldFail = true
 					continue
