@@ -133,7 +133,13 @@ func main() {
 	var filteredSuites []JUnitTestSuite
 
 	for _, suite := range testSuites.Suites {
-		logger.Debug("Processing suite: %s (tests=%d, failures=%d, skipped=%d)", suite.Name, suite.Tests, suite.Failures, suite.Skipped)
+		logger.Debug(
+			"Processing suite: %s (tests=%d, failures=%d, skipped=%d)",
+			suite.Name,
+			suite.Tests,
+			suite.Failures,
+			suite.Skipped,
+		)
 
 		var filteredTestCases []JUnitTestCase
 		for _, tCase := range suite.TestCases {
@@ -150,22 +156,46 @@ func main() {
 				if strings.Contains(tCase.Failure.Contents, "test timed out after") {
 					// If a timeout occurs, TestMain is also reported as failed.
 					// However, the actual tests which timed out should also be reported. So we can filter out this test main failure.
-					logger.Warning("Timeout detected for %s. Total test failures in suite: %d", suite.Name, suite.Failures)
+					logger.Warning(
+						"Timeout detected for %s. Total test failures in suite: %d",
+						suite.Name,
+						suite.Failures,
+					)
 					if suite.Failures == 0 {
 						// This should not happen
-						logger.Error("(failing) Timeout in TestMain with no other failures in suite %s - %s", suite.Name, tCase.Failure.Contents)
+						logger.Error(
+							"(failing) Timeout in TestMain with no other failures in suite %s - %s",
+							suite.Name,
+							tCase.Failure.Contents,
+						)
 						shouldFail = true
 					}
-				} else if strings.Contains(tCase.Failure.Contents, "[build failed]") {
-					// If a build failure occurred, log and mark as failure
-					logger.Error("(failing) Build failure detected for suite %s - %s", suite.Name, tCase.Failure.Contents)
-					shouldFail = true
-				} else if suite.Tests > 0 && suite.Failures == 0 {
-					// Unknown failure in TestMain with no other failures
-					logger.Error("(failing) Unknown failure in TestMain with no other failures in suite %s - %s", suite.Name, tCase.Failure.Contents)
-					shouldFail = true
+					continue
 				}
 
+				if strings.Contains(tCase.Failure.Contents, "[build failed]") {
+					// If a build failure occurred, log and mark as failure
+					logger.Error(
+						"(failing) Build failure detected for suite %s - %s",
+						suite.Name,
+						tCase.Failure.Contents,
+					)
+					shouldFail = true
+					continue
+				}
+
+				if suite.Tests > 0 && suite.Failures == 0 {
+					// Unknown failure in TestMain with no other failures
+					logger.Error(
+						"(failing) Unknown failure in TestMain with no other failures in suite %s - %s",
+						suite.Name,
+						tCase.Failure.Contents,
+					)
+					shouldFail = true
+					continue
+				}
+
+				logger.Info("Filtering out TestMain failure for suite %s", suite.Name)
 				continue
 			}
 

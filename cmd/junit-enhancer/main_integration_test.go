@@ -31,7 +31,19 @@ func runGoTestWithJUnit(t *testing.T, modulePath string) string {
 
 	// Run gotestsum with JUnit output in the target directory
 	// #nosec G204 - tempFile path is controlled
-	cmd := exec.Command("gotestsum", "--junitfile", tempFile, "--format", "testname", "--", "-timeout", "5s", "--count", "1", "./...")
+	cmd := exec.Command(
+		"gotestsum",
+		"--junitfile",
+		tempFile,
+		"--format",
+		"testname",
+		"--",
+		"-timeout",
+		"5s",
+		"--count",
+		"1",
+		"./...",
+	)
 	cmd.Dir = absModulePath
 	output, err := cmd.CombinedOutput()
 	if err != nil {
