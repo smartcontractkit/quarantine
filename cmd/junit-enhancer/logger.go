@@ -40,6 +40,17 @@ func isRunningInGitHubActions() bool {
 	return false
 }
 
+func (l *Logger) TruncateString(s string, n int) string {
+	if s == "" {
+		return s
+	}
+	runes := []rune(s)
+	if len(runes) <= n {
+		return s
+	}
+	return string(runes[:n]) + "... [truncated]"
+}
+
 // Logs a debug message
 func (l *Logger) Debug(format string, args ...interface{}) {
 	if !l.verbose {
