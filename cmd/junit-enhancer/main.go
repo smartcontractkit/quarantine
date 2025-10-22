@@ -153,23 +153,16 @@ func main() {
 					continue
 				}
 
-				if strings.Contains(tCase.Failure.Contents, "test timed out after") {
-					// If a timeout occurs, TestMain is also reported as failed.
-					// However, the actual tests which timed out should also be reported. So we can filter out this test main failure.
-					logger.Warning(
-						"Timeout detected for %s. Total test failures in suite: %d",
+				if strings.Contains(tCase.Failure.Contents, "panic: test timed out after") {
+					// If a timeout occurs, TestMain it is also reported as failed. So we can filter out this test main failure.
+					// However, a timeout may have stopped other tests from even running, meaning they wouldn't be reported in the JUnit XML.
+					// So we still mark this case as failure.
+					logger.Error(
+						"(failing) Timeout detected for %s - %s",
 						suite.Name,
-						suite.Failures,
+						logger.TruncateString(tCase.Failure.Contents, 100),
 					)
-					if suite.Failures == 0 {
-						// This should not happen
-						logger.Error(
-							"(failing) Timeout in TestMain with no other failures in suite %s - %s",
-							suite.Name,
-							logger.TruncateString(tCase.Failure.Contents, 100),
-						)
-						shouldFail = true
-					}
+					shouldFail = true
 					continue
 				}
 

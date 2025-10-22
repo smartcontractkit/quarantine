@@ -236,6 +236,9 @@ func TestIntegration_BuildFailureModule(t *testing.T) {
 
 	t.Logf("junit-enhancer output: %s", output)
 
+	// Should filter out TestMain and enhance other tests
+	verifyEnhancedOutput(t, junitEnhancedFile, "cmd/junit-enhancer/test-fixture/buildfailure")
+
 	if err := os.Remove(junitFile); err != nil {
 		t.Logf("Failed to remove %s: %v", junitFile, err)
 	}
@@ -277,6 +280,54 @@ func TestIntegration_TestMainFailure(t *testing.T) {
 	}
 
 	t.Logf("junit-enhancer output: %s", output)
+
+	// Should filter out TestMain and enhance other tests
+	verifyEnhancedOutput(t, junitEnhancedFile, "cmd/junit-enhancer/test-fixture/testmainfailure")
+
+	if err := os.Remove(junitFile); err != nil {
+		t.Logf("Failed to remove %s: %v", junitFile, err)
+	}
+	if err := os.Remove(junitEnhancedFile); err != nil {
+		t.Logf("Failed to remove %s: %v", junitEnhancedFile, err)
+	}
+}
+
+// Tests a module with intentional TestMain failure
+func TestIntegration_TimeoutFailure(t *testing.T) {
+	t.Parallel()
+
+	// Test the broken module (separate Go module)
+	timeoutPath := "./test-fixture/timeout"
+
+	// Generate JUnit XML
+	junitFile := runGoTestWithJUnit(t, timeoutPath)
+	junitEnhancedFile := junitFile + ".enhanced"
+
+	// Get the repository root
+	repoRoot, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatalf("Failed to get repo root: %v", err)
+	}
+
+	flags := getJunitFlags(t, junitFile, junitEnhancedFile, repoRoot)
+
+	// Run the junit-enhancer tool
+	cmd := exec.Command("go", flags...) // #nosec G204 - flags are controlled by test code
+	output, err := cmd.CombinedOutput()
+
+	if exitError, ok := err.(*exec.ExitError); ok {
+		exitCode := exitError.ExitCode()
+		if exitCode != 1 {
+			t.Fatalf("junit-enhancer failed with unexpected exit code %d\nOutput: %s", exitCode, output)
+		}
+	} else {
+		t.Fatalf(" Expected an exit code of 1 from junit-enhancer but got none.\nOutput: %s", output)
+	}
+
+	t.Logf("junit-enhancer output: %s", output)
+
+	// Should filter out TestMain and enhance other tests
+	verifyEnhancedOutput(t, junitEnhancedFile, "cmd/junit-enhancer/test-fixture/timeout")
 
 	if err := os.Remove(junitFile); err != nil {
 		t.Logf("Failed to remove %s: %v", junitFile, err)
