@@ -31,7 +31,7 @@ repos:
         stages: [pre-commit, pre-push]
       - id: go-modernize
         name: go modernize
-        entry: go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest -fix -test ./...
+        entry: go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest -fix ./...
         pass_filenames: false
         types: [go]
         language: golang
