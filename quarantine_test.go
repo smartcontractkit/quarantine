@@ -28,3 +28,24 @@ func TestFlaky(t *testing.T) {
 		})
 	})
 }
+
+func TestTimeout(t *testing.T) {
+	t.Run("skip timeout tests", func(t *testing.T) {
+		t.Setenv(quarantine.RunTimeoutTestsEnvVar, "false")
+		quarantine.Timeout(t, "TEST-123")
+
+		t.Cleanup(func() {
+			require.True(t, t.Skipped(), "timeout test should be skipped when RUN_TIMEOUT_TESTS is false")
+		})
+	})
+
+	t.Run("run timeout tests", func(t *testing.T) {
+		t.Setenv(quarantine.RunTimeoutTestsEnvVar, "true")
+		quarantine.Timeout(t, "TEST-123")
+
+		t.Cleanup(func() {
+			require.False(t, t.Skipped(), "timeout test should not be skipped when RUN_TIMEOUT_TESTS is true")
+			t.Log("This test is intentionally skipped! Skipping = Passing!")
+		})
+	})
+}
