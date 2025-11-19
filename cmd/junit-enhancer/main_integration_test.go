@@ -84,7 +84,11 @@ func verifyEnhancedOutput(t *testing.T, junitEnhancedFile string, expectedPathPr
 		t.Fatalf("Failed to read enhanced directory: %v", err)
 	}
 	for _, file := range files {
-		t.Logf("Enhanced file: %s", file.Name())
+		name := file.Name()
+		if file.IsDir() {
+			name += "/"
+		}
+		t.Logf("Enhanced output: %s", name)
 	}
 
 	enhancedData, err := os.ReadFile(junitEnhancedFile) // #nosec G304 - controlled by test

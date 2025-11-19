@@ -134,7 +134,7 @@ func main() {
 		matched           = 0
 		total             = 0
 		filteredSuites    []JUnitTestSuite
-		testLogsOutputDir = filepath.Join(filepath.Dir(*outputFile), "raw-test-logs")
+		testLogsOutputDir = filepath.Dir(*outputFile)
 	)
 
 	for _, suite := range testSuites.Suites {
@@ -225,7 +225,12 @@ func main() {
 	xmlOutput := []byte(xml.Header + string(output))
 
 	// Write to output file
-	if err := os.WriteFile(*outputFile, xmlOutput, 0600); err != nil {
+	err = os.MkdirAll(filepath.Dir(*outputFile), 0700)
+	if err != nil {
+		logger.Fatal("Failed to create output directory %s: %v", filepath.Dir(*outputFile), err)
+	}
+	err = os.WriteFile(*outputFile, xmlOutput, 0600)
+	if err != nil {
 		logger.Fatal("Failed to write output file: %v", err)
 	}
 
@@ -237,7 +242,8 @@ func main() {
 }
 
 // writeRawLogFile writes a raw log file for a single failed test for easier debugging by other tools and CI systems
-func writeRawLogFile(logger *Logger, outputDir string, failingTest JUnitTestCase) {
+// The file is written to a subdirectory of the base output directory called "raw-test-logs"
+func writeRawLogFile(logger *Logger, baseOutputDir string, failingTest JUnitTestCase) {
 	if failingTest.Failure == nil {
 		return
 	}
@@ -246,17 +252,30 @@ func writeRawLogFile(logger *Logger, outputDir string, failingTest JUnitTestCase
 		return
 	}
 
-	logFile := rawLogFileName(outputDir, failingTest)
+	logFile := rawLogFileName(baseOutputDir, failingTest)
+	outputDir := filepath.Dir(logFile)
 
-	if err := os.WriteFile(logFile, []byte(failingTest.Failure.Contents), 0600); err != nil {
+	err := os.MkdirAll(outputDir, 0700)
+	if err != nil {
+		logger.Error("Failed to create output directory %s: %v", outputDir, err)
+		return
+	}
+
+	err = os.WriteFile(logFile, []byte(failingTest.Failure.Contents), 0600)
+	if err != nil {
 		logger.Error("Failed to write log file %s: %v", logFile, err)
 		return
 	}
 	logger.Debug("Wrote log file for test %s to %s", failingTest.Name, logFile)
 }
 
-func rawLogFileName(outputDir string, failingTest JUnitTestCase) string {
-	var testName string
+// rawLogFileName returns the file name for a raw log file for a single failed test
+// The file is written to a subdirectory of the base output directory called "raw-test-logs"
+func rawLogFileName(baseOutputDir string, failingTest JUnitTestCase) string {
+	var (
+		outputDir = filepath.Join(baseOutputDir, "raw-test-logs")
+		testName  string
+	)
 
 	if failingTest.Classname == "" {
 		testName = failingTest.Name

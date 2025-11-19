@@ -7,7 +7,13 @@ import (
 
 func TestCurrentTime_ShouldTimeout(t *testing.T) {
 	t.Parallel()
-	time.Sleep(15 * time.Second)
+
+	deadline, ok := t.Deadline()
+	if !ok {
+		t.Fatalf("Deadline is not set, needed for test to timeout properly")
+	}
+
+	time.Sleep(time.Until(deadline) + 1*time.Second)
 }
 
 func TestCurrentTime_ShouldNotTimeout(t *testing.T) {
