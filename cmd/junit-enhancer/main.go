@@ -253,7 +253,6 @@ func writeRawLogFile(logger *Logger, outputDir string, failingTest JUnitTestCase
 		return
 	}
 	logger.Debug("Wrote log file for test %s to %s", failingTest.Name, logFile)
-	return
 }
 
 func rawLogFileName(outputDir string, failingTest JUnitTestCase) string {
