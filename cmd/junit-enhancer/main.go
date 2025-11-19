@@ -130,12 +130,11 @@ func main() {
 
 	// Process test suites: filter and add file information in one pass
 	var (
-		shouldFail      = false
-		matched         = 0
-		total           = 0
-		filteredSuites  []JUnitTestSuite
-		outputDir       = filepath.Dir(*outputFile)
-		failingLogFiles []string
+		shouldFail     = false
+		matched        = 0
+		total          = 0
+		filteredSuites []JUnitTestSuite
+		outputDir      = filepath.Dir(*outputFile)
 	)
 
 	for _, suite := range testSuites.Suites {
@@ -199,10 +198,7 @@ func main() {
 			}
 
 			if tCase.Failure != nil {
-				logFile := writeRawLogFile(logger, outputDir, tCase)
-				if logFile != "" {
-					failingLogFiles = append(failingLogFiles, logFile)
-				}
+				writeRawLogFile(logger, outputDir, tCase)
 			}
 
 			// Process file information for valid test cases
@@ -241,23 +237,23 @@ func main() {
 }
 
 // writeRawLogFile writes a raw log file for a single failed test for easier debugging by other tools and CI systems
-func writeRawLogFile(logger *Logger, outputDir string, failingTest JUnitTestCase) string {
+func writeRawLogFile(logger *Logger, outputDir string, failingTest JUnitTestCase) {
 	if failingTest.Failure == nil {
-		return ""
+		return
 	}
 	if failingTest.Failure.Contents == "" {
 		logger.Warning("No failure contents found for test %s to write log file for", failingTest.Name)
-		return ""
+		return
 	}
 
 	logFile := rawLogFileName(outputDir, failingTest)
 
 	if err := os.WriteFile(logFile, []byte(failingTest.Failure.Contents), 0600); err != nil {
 		logger.Error("Failed to write log file %s: %v", logFile, err)
-		return ""
+		return
 	}
 	logger.Debug("Wrote log file for test %s to %s", failingTest.Name, logFile)
-	return logFile
+	return
 }
 
 func rawLogFileName(outputDir string, failingTest JUnitTestCase) string {
