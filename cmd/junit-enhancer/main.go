@@ -130,11 +130,11 @@ func main() {
 
 	// Process test suites: filter and add file information in one pass
 	var (
-		shouldFail     = false
-		matched        = 0
-		total          = 0
-		filteredSuites []JUnitTestSuite
-		outputDir      = filepath.Dir(*outputFile)
+		shouldFail        = false
+		matched           = 0
+		total             = 0
+		filteredSuites    []JUnitTestSuite
+		testLogsOutputDir = filepath.Join(filepath.Dir(*outputFile), "raw-test-logs")
 	)
 
 	for _, suite := range testSuites.Suites {
@@ -198,7 +198,7 @@ func main() {
 			}
 
 			if tCase.Failure != nil {
-				writeRawLogFile(logger, outputDir, tCase)
+				writeRawLogFile(logger, testLogsOutputDir, tCase)
 			}
 
 			// Process file information for valid test cases
