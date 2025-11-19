@@ -20,7 +20,8 @@ func runGoTestWithJUnit(t *testing.T, modulePath string) string {
 		t.Fatalf("Failed to get absolute path for %s: %v", modulePath, err)
 	}
 
-	tempFile := filepath.Join(os.TempDir(), fmt.Sprintf("junit_%d.xml", time.Now().UnixNano()))
+	tempDir := t.TempDir()
+	tempFile := filepath.Join(tempDir, fmt.Sprintf("junit_%d.xml", time.Now().UnixNano()))
 
 	if _, err := exec.LookPath("gotestsum"); err != nil {
 		t.Fatalf("gotestsum not found")
@@ -76,6 +77,16 @@ func getJunitFlags(t *testing.T, inputFile, outputFile, repoRoot string) []strin
 func verifyEnhancedOutput(t *testing.T, junitEnhancedFile string, expectedPathPrefix string) {
 	t.Helper()
 
+	enhancedDir := filepath.Dir(junitEnhancedFile)
+	// Show all files in the enhanced directory
+	files, err := os.ReadDir(enhancedDir)
+	if err != nil {
+		t.Fatalf("Failed to read enhanced directory: %v", err)
+	}
+	for _, file := range files {
+		t.Logf("Enhanced file: %s", file.Name())
+	}
+
 	enhancedData, err := os.ReadFile(junitEnhancedFile) // #nosec G304 - controlled by test
 	if err != nil {
 		t.Fatalf("Failed to read enhanced XML: %v", err)
@@ -91,6 +102,14 @@ func verifyEnhancedOutput(t *testing.T, junitEnhancedFile string, expectedPathPr
 
 	for _, suite := range enhancedSuites.Suites {
 		for _, testCase := range suite.TestCases {
+			if testCase.Failure != nil {
+				logFile := rawLogFileName(enhancedDir, testCase)
+				_, err := os.Stat(logFile)
+				if os.IsNotExist(err) {
+					t.Errorf("Log file %s not found for test %s", logFile, testCase.Name)
+				}
+			}
+
 			totalTests++
 			if testCase.File != "" {
 				filesAdded++

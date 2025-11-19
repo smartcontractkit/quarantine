@@ -4,7 +4,9 @@ package main
 import (
 	"encoding/xml"
 	"flag"
+	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -127,10 +129,14 @@ func main() {
 	}
 
 	// Process test suites: filter and add file information in one pass
-	shouldFail := false
-	matched := 0
-	total := 0
-	var filteredSuites []JUnitTestSuite
+	var (
+		shouldFail      = false
+		matched         = 0
+		total           = 0
+		filteredSuites  []JUnitTestSuite
+		outputDir       = filepath.Dir(*outputFile)
+		failingLogFiles []string
+	)
 
 	for _, suite := range testSuites.Suites {
 		logger.Debug(
@@ -192,6 +198,13 @@ func main() {
 				continue
 			}
 
+			if tCase.Failure != nil {
+				logFile := writeRawLogFile(logger, outputDir, tCase)
+				if logFile != "" {
+					failingLogFiles = append(failingLogFiles, logFile)
+				}
+			}
+
 			// Process file information for valid test cases
 			total++
 			if processTestCaseFilePath(&tCase, finder, logger) {
@@ -225,4 +238,37 @@ func main() {
 	}
 
 	logger.Info("Successfully enhanced JUnit XML file: %s (%d/%d test cases matched)", *outputFile, matched, total)
+}
+
+// writeRawLogFile writes a raw log file for a single failed test for easier debugging by other tools and CI systems
+func writeRawLogFile(logger *Logger, outputDir string, failingTest JUnitTestCase) string {
+	if failingTest.Failure == nil {
+		return ""
+	}
+	if failingTest.Failure.Contents == "" {
+		logger.Warning("No failure contents found for test %s to write log file for", failingTest.Name)
+		return ""
+	}
+
+	logFile := rawLogFileName(outputDir, failingTest)
+
+	if err := os.WriteFile(logFile, []byte(failingTest.Failure.Contents), 0600); err != nil {
+		logger.Error("Failed to write log file %s: %v", logFile, err)
+		return ""
+	}
+	logger.Debug("Wrote log file for test %s to %s", failingTest.Name, logFile)
+	return logFile
+}
+
+func rawLogFileName(outputDir string, failingTest JUnitTestCase) string {
+	var testName string
+
+	if failingTest.Classname == "" {
+		testName = failingTest.Name
+	} else {
+		shortenedPackageName := filepath.Base(failingTest.Classname)
+		testName = fmt.Sprintf("%s.%s", shortenedPackageName, failingTest.Name)
+	}
+
+	return filepath.Join(outputDir, fmt.Sprintf("%s.log", testName))
 }
