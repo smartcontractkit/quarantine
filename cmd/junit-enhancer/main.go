@@ -269,6 +269,39 @@ func writeRawLogFile(logger *Logger, baseOutputDir string, failingTest JUnitTest
 	logger.Debug("Wrote log file for test %s to %s", failingTest.Name, logFile)
 }
 
+// sanitizeForArtifactFileName ensures a filename is safe for GitHub artifact uploads
+// by replacing characters outside of [A-Za-z0-9._-] with underscores and trimming
+// leading/trailing spaces or dots which are problematic on some filesystems.
+func sanitizeForArtifactFileName(name string) string {
+	sanitized := strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z':
+			return r
+		case r >= 'A' && r <= 'Z':
+			return r
+		case r >= '0' && r <= '9':
+			return r
+		case r == '-', r == '_', r == '.':
+			return r
+		default:
+			return '_'
+		}
+	}, name)
+
+	// Trim leading/trailing spaces and dots (Windows/Artifact safety)
+	sanitized = strings.Trim(sanitized, " .")
+
+	if sanitized == "" {
+		return "unnamed"
+	}
+
+	// Keep names reasonably short to avoid path length issues in some environments
+	if len(sanitized) > 200 {
+		sanitized = sanitized[:200]
+	}
+	return sanitized
+}
+
 // rawLogFileName returns the file name for a raw log file for a single failed test
 // The file is written to a subdirectory of the base output directory called "raw-test-logs"
 func rawLogFileName(baseOutputDir string, failingTest JUnitTestCase) string {
@@ -284,5 +317,6 @@ func rawLogFileName(baseOutputDir string, failingTest JUnitTestCase) string {
 		testName = fmt.Sprintf("%s.%s", shortenedPackageName, failingTest.Name)
 	}
 
-	return filepath.Join(outputDir, fmt.Sprintf("%s.log", testName))
+	safeTestName := sanitizeForArtifactFileName(testName)
+	return filepath.Join(outputDir, fmt.Sprintf("%s.log", safeTestName))
 }
